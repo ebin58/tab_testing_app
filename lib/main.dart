@@ -21,42 +21,80 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget{
+class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage>{
+class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
+    return SafeArea(
+        child: DefaultTabController(
       initialIndex: 0,
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: Text("Trying to do tabs"),
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          bottom: TabBar(
-          tabs: <Widget>[
-            Tab(
-              icon: Icon(Icons.home), 
-              text: "Home Tab",
-            ),
-            Tab(
-              icon: Icon(Icons.icecream_outlined), 
-              text: "Pending",
-            ),
-            Tab(
-              icon: Icon(Icons.home), 
-              text: "Home Tab",
-            ),
-          ]
-          )
-        ),
+            title: Text("Terpiez"),
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            bottom: TabBar(tabs: [
+              Tab(
+                icon: Icon(Icons.auto_graph),
+                text: "Stats",
+              ),
+              Tab(
+                icon: Icon(Icons.search),
+                text: "Finder",
+              ),
+              Tab(
+                icon: Icon(Icons.list),
+                text: "List",
+              ),
+            ])),
+        body: TabBarView(children: [
+          StatsScreen(),
+        ]),
       ),
-    );
+    ));
   }
+}
 
+class StatsScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        body: Column(
+            children: [
+              Align(
+                alignment: Alignment.topCenter,
+                child: Text("Statistics", 
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                )
+              )
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                children: [
+                  Text("   Terpiez found: 23",
+                  style: TextStyle(
+                    fontSize: 18  
+                  ),
+                  ),
+                  Text("Days Active: 24", 
+                  style: TextStyle(
+                    fontSize: 18
+                  )
+                  )
+                ],
+              )
+            )
+          ]
+        ),
+      );
+  }
 }
