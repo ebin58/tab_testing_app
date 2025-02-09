@@ -105,9 +105,6 @@ class FinderScreen extends StatelessWidget{
   
   @override
   Widget build(BuildContext context) {
-    
-    // final size = MediaQuery.of(context).size;
-    // final iconSize = size.width < size.height ? size.width - 20 : size.height - 300;
     return Scaffold(
       body: OrientationBuilder(
         builder: (context, orientation){
