@@ -33,7 +33,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return SafeArea(
         child: DefaultTabController(
-      initialIndex: 0,
+      initialIndex: 1,
       length: 3,
       child: Scaffold(
         appBar: AppBar(
@@ -55,6 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ])),
         body: TabBarView(children: [
           StatsScreen(),
+          FinderScreen(),
         ]),
       ),
     ));
@@ -96,5 +97,97 @@ class StatsScreen extends StatelessWidget {
           ]
         ),
       );
+  }
+}
+
+class FinderScreen extends StatelessWidget{
+
+  
+  @override
+  Widget build(BuildContext context) {
+    
+    // final size = MediaQuery.of(context).size;
+    // final iconSize = size.width < size.height ? size.width - 20 : size.height - 300;
+    return Scaffold(
+      body: OrientationBuilder(
+        builder: (context, orientation){
+          final s = orientation == Orientation.portrait ? porState() : landState();
+          return Padding(
+          padding: EdgeInsets.all(10),
+          child: s,
+        );
+        }
+      )
+    );
+  }
+}
+
+class porState extends StatelessWidget{
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.topCenter,
+          child: Text("Terpiez Finder", 
+            style: TextStyle(
+              fontSize: 46,
+              fontWeight: FontWeight.bold,
+            )
+          )
+        ),
+        Icon(
+          Icons.map_rounded,
+          size: 400
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Column(
+            children: [
+              Text("Closest Terpiez:"),
+              Text("124.0m")
+            ],
+          )
+        )
+      ],
+    );
+  }
+}
+
+class landState extends StatelessWidget{
+
+  @override
+  Widget build(BuildContext context) {
+    return  Column(
+      children: [
+        Align(
+          alignment: Alignment.topCenter,
+          child: Text("Terpiez Finder", 
+            style: TextStyle(
+              fontSize: 46,
+              fontWeight: FontWeight.bold,
+            )
+          )
+        ),
+        Expanded(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Icon(
+              Icons.map_rounded,
+            size: 150
+            )
+        )
+        ),
+        Align(
+          alignment: Alignment.center,
+          child: Column(
+            children: [
+              Text("Closest Terpiez:"),
+              Text("124.0m")
+            ],
+          )
+        )
+      ],
+    );
   }
 }
