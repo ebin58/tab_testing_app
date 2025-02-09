@@ -33,7 +33,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return SafeArea(
         child: DefaultTabController(
-      initialIndex: 1,
+      initialIndex: 2,
       length: 3,
       child: Scaffold(
         appBar: AppBar(
@@ -56,6 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
         body: TabBarView(children: [
           StatsScreen(),
           FinderScreen(),
+          ListScreen()
         ]),
       ),
     ));
@@ -171,7 +172,7 @@ class landState extends StatelessWidget{
             alignment: Alignment.topLeft,
             child: Icon(
               Icons.map_rounded,
-            size: 150
+              size: 150
             )
         )
         ),
@@ -185,6 +186,104 @@ class landState extends StatelessWidget{
           )
         )
       ],
+    );
+  }
+}
+
+class ListScreen extends StatelessWidget{
+
+  @override
+  Widget build(BuildContext context) {
+    
+    return Scaffold(
+      body: Column(
+        children: [
+          Row(
+          children: [
+            IconButton(
+            icon: Icon(
+              Icons.bug_report,
+              size:  50
+              ),
+            onPressed: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => BugPage()),
+                );
+            } ,
+          ), 
+          Text("Bug")
+          ]
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(
+                Icons.airplanemode_active,
+                size: 50
+              ),
+              onPressed: (){
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => PlanePage(),
+                  )
+                );
+              },
+              ),
+              Text("Plane")
+            ]
+          )
+        ],
+      )
+    );
+  }
+}
+
+
+class BugPage extends StatelessWidget{
+
+  @override
+  Widget build(BuildContext context) {
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Bug"),
+      ),
+      body: Column(
+        children: [Align(
+          alignment: Alignment.topCenter,
+          child: Icon(
+            Icons.bug_report,
+            size: 100,
+          ),
+        ),
+        Text("Bug")
+        ]
+      ),
+    );
+  }
+}
+
+class PlanePage extends StatelessWidget{
+
+  @override
+  Widget build(BuildContext context) {
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Plane"),
+      ),
+      body: Column(
+        children: [Align(
+          alignment: Alignment.topCenter,
+          child: Icon(
+            Icons.airplanemode_active,
+            size: 100,
+          ),
+        ),
+        Text("Plane")
+        ]
+      ),
     );
   }
 }
