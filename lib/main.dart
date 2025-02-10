@@ -109,7 +109,7 @@ class FinderScreen extends StatelessWidget{
     return Scaffold(
       body: OrientationBuilder(
         builder: (context, orientation){
-          final s = orientation == Orientation.portrait ? porState() : landState();
+          final s = orientation == Orientation.portrait ? PortState() : LandState();
           return Padding(
           padding: EdgeInsets.all(10),
           child: s,
@@ -120,7 +120,7 @@ class FinderScreen extends StatelessWidget{
   }
 }
 
-class porState extends StatelessWidget{
+class PortState extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -152,7 +152,7 @@ class porState extends StatelessWidget{
   }
 }
 
-class landState extends StatelessWidget{
+class LandState extends StatelessWidget{
 
   @override
   Widget build(BuildContext context) {
