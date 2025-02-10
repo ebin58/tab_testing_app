@@ -33,7 +33,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return SafeArea(
         child: DefaultTabController(
-      initialIndex: 2,
+      initialIndex: 1,
       length: 3,
       child: Scaffold(
         appBar: AppBar(
@@ -152,43 +152,37 @@ class PortState extends StatelessWidget{
   }
 }
 
-class LandState extends StatelessWidget{
-
+class LandState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return  Column(
-      children: [
-        Align(
-          alignment: Alignment.topCenter,
-          child: Text("Terpiez Finder", 
-            style: TextStyle(
-              fontSize: 46,
-              fontWeight: FontWeight.bold,
-            )
-          )
-        ),
-        Expanded(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Icon(
-              Icons.map_rounded,
-              size: 150
-            )
-        )
-        ),
-        Align(
-          alignment: Alignment.center,
-          child: Column(
-            children: [
-              Text("Closest Terpiez:"),
-              Text("124.0m")
-            ],
-          )
-        )
-      ],
-    );
+    return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          Icon(
+            Icons.map_rounded,
+            size: 150,
+          ),
+
+          Expanded(
+            child: Column(
+              
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  "Terpiez Finder",
+                  style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
+                ),
+                Text("Closest Terpiez:"),
+                Text("124.0m", style: TextStyle(fontSize: 24)),
+              ],
+            ),
+          ),
+        ],
+      );
   }
 }
+
 
 class ListScreen extends StatelessWidget{
 
