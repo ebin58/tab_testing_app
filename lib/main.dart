@@ -194,35 +194,42 @@ class ListScreen extends StatelessWidget{
         children: [
           Row(
           children: [
-            IconButton(
-            icon: Icon(
+            Hero(
+              tag: "bugPage",
+              child: IconButton(
+                icon: Icon(
               Icons.bug_report,
-              size:  50
-              ),
-            onPressed: () {
+                size:  50
+                ),
+              onPressed: () {
               Navigator.push(
                 context, 
                 MaterialPageRoute(builder: (context) => BugPage()),
                 );
-            } ,
+              } ,
+            ),
           ), 
           Text("Bug")
+          
           ]
           ),
           Row(
             children: [
-              IconButton(
-                icon: Icon(
+              Hero(
+                tag: "planePage",  
+                child:IconButton(
+                  icon: Icon(
                 Icons.airplanemode_active,
-                size: 50
-              ),
-              onPressed: (){
-                Navigator.push(
+                  size: 50
+                ),
+                onPressed: (){
+                  Navigator.push(
                   context, 
                   MaterialPageRoute(builder: (context) => PlanePage(),
-                  )
-                );
-              },
+                    )
+                  );
+                },
+                ),
               ),
               Text("Plane")
             ]
@@ -244,11 +251,15 @@ class BugPage extends StatelessWidget{
         title: Text("Bug"),
       ),
       body: Column(
-        children: [Align(
-          alignment: Alignment.topCenter,
-          child: Icon(
+        children: [
+          Align(
+            alignment: Alignment.topCenter,
+            child: Hero(
+              tag:"bugPage",
+              child: Icon(
             Icons.bug_report,
-            size: 100,
+              size: 100,
+            ),
           ),
         ),
         Text("Bug")
@@ -270,9 +281,12 @@ class PlanePage extends StatelessWidget{
       body: Column(
         children: [Align(
           alignment: Alignment.topCenter,
-          child: Icon(
+          child: Hero(
+            tag: "planePage",
+            child: Icon(
             Icons.airplanemode_active,
             size: 100,
+            ),
           ),
         ),
         Text("Plane")
