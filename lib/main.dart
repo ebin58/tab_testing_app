@@ -71,30 +71,3 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 
-// class BugPage extends StatelessWidget{
-
-//   @override
-//   Widget build(BuildContext context) {
-    
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text("Bug"), 
-//       body: Column(
-//         children: [
-//           Align(
-//             alignment: Alignment.topCenter,
-//             child: Hero(
-//               tag:"bugPage",
-//               child: Icon(
-//             Icons.bug_report,
-//               size: 100,
-//             ),
-//           ),
-//         ),
-//         Text("Bug")
-//         ]
-//       ),
-//     );
-//   }
-// }
-
