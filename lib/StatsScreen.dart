@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'userData.dart';
+import 'package:provider/provider.dart';
 
 
 class StatsScreen extends StatelessWidget {
@@ -16,23 +18,32 @@ class StatsScreen extends StatelessWidget {
                   )
                 )
               ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  children: [
-                    Text("   Terpiez found: 23",
-                    style: TextStyle(
-                      fontSize: 18  
-                    ),
-                    ),
-                    Text("Days Active: 24", 
-                    style: TextStyle(
-                      fontSize: 18
-                    )
-                    )
-                  ],
+                Consumer<Userdata>(
+                  builder: (context, userData, child){
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Terpiez found: 23',
+                          style: TextStyle(
+                          fontSize: 18,  
+                          fontWeight: FontWeight.bold
+                          ),
+                        ),
+                        Text('Days Active: 24', 
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold
+                          )
+                        ),
+                        Text('User id: ${userData.playerID}',
+                          style: TextStyle(
+                            fontSize: 18
+                          ),
+                        )
+                      ],
+                    );
+                  }
                 )
-              )
             ]
           ),
         );

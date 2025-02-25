@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'StatsScreen.dart';
 import 'ListScreen.dart';
 import 'FinderScreen.dart';
+import 'userData.dart';
 
 
 void main() {
-  runApp(const MyApp());
+  runApp(ChangeNotifierProvider(create: (context) => 
+  Userdata(),
+    child: 
+      (const MyApp())
+    )
+  );
 }
 
 class MyApp extends StatelessWidget {
