@@ -10,21 +10,21 @@ class BugPage extends StatefulWidget{
   }
   
   class BugPageState extends State<BugPage> with SingleTickerProviderStateMixin {
-    late AnimationController _controller;
-    List<double> _barOffsets = [-300, -250, -200, -150, -100]; // Initial positions
+    late AnimationController controller;
+    List<double> barOffsets = [-300, -250, -200, -150, -100]; // Initial positions
   
     @override
     void initState() {
-      super.initState();
+    super.initState();
   
       // Start the animation when the page is opened
-      _controller = AnimationController(
+     controller = AnimationController(
         vsync: this,
         duration: Duration(seconds: 2),
       )..addListener(() {
           setState(() {
-            for (int i = 0; i < _barOffsets.length; i++) {
-              _barOffsets[i] += 5; // Move the bars across the screen
+            for (int i = 0; i < barOffsets.length; i++) {
+              barOffsets[i] += 5; // Move the bars across the screen
             }
           });
         });
@@ -36,22 +36,22 @@ class BugPage extends StatefulWidget{
           return;
         }
         setState(() {
-          for (int i = 0; i < _barOffsets.length; i++) {
-            if (_barOffsets[i] > MediaQuery.of(context).size.width) {
-              _barOffsets[i] = -300.0; // Reset position when out of bounds
+          for (int i = 0; i < barOffsets.length; i++) {
+            if (barOffsets[i] > MediaQuery.of(context).size.width) {
+              barOffsets[i] = -300.0; // Reset position when out of bounds
             } else {
-              _barOffsets[i] += 20.0; // Move bars forward
+              barOffsets[i] += 20.0; // Move bars forward
             }
           }
         });
       });
   
-      _controller.repeat();
+     controller.repeat();
     }
   
     @override
     void dispose() {
-      _controller.dispose();
+     controller.dispose();
       super.dispose();
     }
   
@@ -76,15 +76,15 @@ class BugPage extends StatefulWidget{
             Positioned.fill(
               child: Stack(
                 children: List.generate(
-                  _barOffsets.length,
+                  barOffsets.length,
                   (index) => AnimatedPositioned(
                     duration: Duration(milliseconds: 100),
-                    left: _barOffsets[index],
+                    left: barOffsets[index],
                     top: 100 + index * 50,
                     child: Container(
                       width: 100,
                       height: 20,
-                      color: Colors.deepPurpleAccent,
+                      color: const Color.fromARGB(255, 8, 106, 23),
                     ),
                   ),
                 ),
