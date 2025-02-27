@@ -29,7 +29,7 @@ class StatsScreen extends StatelessWidget {
                           fontWeight: FontWeight.bold
                           ),
                         ),
-                        Text('Days Active: 24', 
+                        Text('Days Active: ${userData.dayPlayed}', 
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold
