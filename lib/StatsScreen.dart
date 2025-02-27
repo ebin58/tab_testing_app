@@ -23,7 +23,7 @@ class StatsScreen extends StatelessWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Terpiez found: 23',
+                        Text("Terpiez Caught: ${Provider.of<Userdata>(context).numCaught}",
                           style: TextStyle(
                           fontSize: 18,  
                           fontWeight: FontWeight.bold

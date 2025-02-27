@@ -9,5 +9,10 @@ class Userdata extends ChangeNotifier{
   int numCaught = 0;
   int dayPlayed =0;
 
+  void incrementNumCaught() {
+    numCaught++;
+    notifyListeners(); // Notify UI to update
+  }
+
 }
 

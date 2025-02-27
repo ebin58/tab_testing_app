@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import 'package:provider/provider.dart';
+import 'userData.dart';
 
 class FinderScreen extends StatelessWidget{
 
@@ -35,10 +36,15 @@ class PortState extends StatelessWidget{
               fontWeight: FontWeight.bold,
             )
           )
-        ),
-        Icon(
-          Icons.map_rounded,
-          size: 400
+        ),GestureDetector(
+          onTap: () {
+            // Increment numCaught on icon tap
+            Provider.of<Userdata>(context, listen: false).numCaught++;
+          },
+            child: Icon(
+            Icons.map_rounded,
+            size: 400
+          )
         ),
         Align(
           alignment: Alignment.bottomCenter,
@@ -60,10 +66,15 @@ class LandState extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-  
-          Icon(
+          GestureDetector(
+          onTap: () {
+            // Increment numCaught on icon tap
+            Provider.of<Userdata>(context, listen: false).numCaught++;
+          },
+            child: Icon(
             Icons.map_rounded,
             size: 150,
+            )
           ),
   
           Expanded(
