@@ -44,12 +44,22 @@ class PlanePageState extends State<PlanePage> {
         children: [
           Align(
             alignment: Alignment.topCenter,
-            child: Hero(
-              tag: "planePage",
-              child: Icon(
-                Icons.airplanemode_active,
-                size: 100,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Hero(
+                  tag: "planePage",
+                  child: Icon(
+                    Icons.airplanemode_active,
+                    size: 100,
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Plane",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           ),
           ...List.generate(

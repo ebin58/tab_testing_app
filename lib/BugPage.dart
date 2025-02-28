@@ -44,12 +44,25 @@ class BugPageState extends State<BugPage> {
         children: [
           Align(
             alignment: Alignment.topCenter,
-            child: Hero(
-              tag: "bugIcon",
-              child: Icon(
-                Icons.bug_report,
-                size: 100,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Hero(
+                  tag: "BugPage",
+                  child: Icon(
+                    Icons.bug_report,
+                    size: 100,
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Bug",
+                  style: TextStyle(
+                    fontSize: 20, 
+                    fontWeight: FontWeight.bold
+                  ),
+                ),
+              ],
             ),
           ),
           Positioned.fill(
@@ -75,58 +88,4 @@ class BugPageState extends State<BugPage> {
   }
 }
 
-
-// class BugPage extends StatelessWidget{
-
-//   @override
-//   Widget build(BuildContext context) {
-    
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text("Bug"), 
-//       body: Column(
-//         children: [
-//           Align(
-//             alignment: Alignment.topCenter,
-//             child: Hero(
-//               tag:"bugPage",
-//               child: Icon(
-//             Icons.bug_report,
-//               size: 100,
-//             ),
-//           ),
-//         ),
-//         Text("Bug")
-//         ]
-//       ),
-//     );
-//   }
-// }
-
-// class BugPage extends StatelessWidget{
-
-//   @override
-//   Widget build(BuildContext context) {
-    
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text("Bug"), 
-//       body: Column(
-//         children: [
-//           Align(
-//             alignment: Alignment.topCenter,
-//             child: Hero(
-//               tag:"bugPage",
-//               child: Icon(
-//             Icons.bug_report,
-//               size: 100,
-//             ),
-//           ),
-//         ),
-//         Text("Bug")
-//         ]
-//       ),
-//     );
-//   }
-// }
 
