@@ -15,7 +15,7 @@ class BugPageState extends State<BugPage> {
     super.initState();
 
     // Timer to move bars up and down
-    Timer.periodic(Duration(milliseconds: 100), (timer) {
+    Timer.periodic(Duration(milliseconds: 50), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
