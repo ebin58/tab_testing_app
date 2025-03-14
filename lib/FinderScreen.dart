@@ -12,10 +12,8 @@ import 'dart:math';
 double haversine(double lat1, double lon1, double lat2, double lon2) {
   const double earthRadius = 6371000.0; // Earth's radius in meters
 
-  // Convert degrees to radians
   double toRadians(double degree) => degree * pi / 180.0;
 
-  // Haversine formula
   final dLat = toRadians(lat2 - lat1);
   final dLon = toRadians(lon2 - lon1);
 
@@ -28,23 +26,33 @@ double haversine(double lat1, double lon1, double lat2, double lon2) {
   return earthRadius * c; // Distance in meters
 }
 
+// Terpiez locations
+final List<LatLng> terpiezLocations = [
+  LatLng(38.9858, -76.9368), // Terpiez 1
+  LatLng(38.9900, -76.9400), // Terpiez 2
+];
 
-// Making a few markers
-Set<Marker> _createMarkers() {
-  return {
-    Marker(
-      markerId: MarkerId("terpiez_1"),
-      position: LatLng(38.9858, -76.9368),
-      infoWindow: InfoWindow(title: "Terpiez 1", snippet: "Ya Found me!"),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-    ),
-    Marker(
-      markerId: MarkerId("terpiez_2"),
-      position: LatLng(38.9900, -76.9400),
-      infoWindow: InfoWindow(title: "Terpiez 2", snippet: "Whaa!"),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-    ),
-  };
+// Function to find the closest Terpiez location
+LatLng findClosestTerpiez(LatLng currentPosition) {
+  LatLng closest = terpiezLocations[0];
+  double minDistance = haversine(
+      currentPosition.latitude,
+      currentPosition.longitude,
+      closest.latitude,
+      closest.longitude);
+
+  for (var terpiez in terpiezLocations) {
+    double distance = haversine(
+        currentPosition.latitude,
+        currentPosition.longitude,
+        terpiez.latitude,
+        terpiez.longitude);
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = terpiez;
+    }
+  }
+  return closest;
 }
 
 // Function to get current location
@@ -53,13 +61,12 @@ Future<LatLng> getUserLocation() async {
   if (permission == LocationPermission.denied) {
     permission = await Geolocator.requestPermission();
   }
-  
+
   Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high);
-  
+
   return LatLng(position.latitude, position.longitude);
 }
-
 
 class FinderScreen extends StatelessWidget {
   @override
@@ -78,29 +85,53 @@ class FinderScreen extends StatelessWidget {
   }
 }
 
-class PortState extends StatefulWidget {
-  @override
-  _PortStateState createState() => _PortStateState();
-}
+abstract class BaseState extends StatefulWidget {}
 
-class _PortStateState extends State<PortState> {
+abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   LatLng? _currentPosition;
+  String _closestDistance = "Calculating...";
+  GoogleMapController? _mapController;
+
+  Set<Marker> get markers => terpiezLocations.asMap().entries.map((entry) {
+    int index = entry.key;
+    LatLng loc = entry.value;
+    return Marker(
+      markerId: MarkerId("${loc.latitude},${loc.longitude}"),
+      position: loc,
+      infoWindow: InfoWindow(title: "Terpiez ${index + 1}"),
+      icon: BitmapDescriptor.defaultMarkerWithHue(
+          (BitmapDescriptor.hueRed + (index * 30)) % 360),
+    );
+  }).toSet();
 
   @override
   void initState() {
     super.initState();
-    _getLocation();
+    _startLocationUpdates();
   }
 
-  Future<void> _getLocation() async {
-    LatLng position = await getUserLocation();
-    setState(() {
-      _currentPosition = position;
+  void _startLocationUpdates() {
+    Geolocator.getPositionStream(
+      locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
+    ).listen((Position position) {
+      LatLng newPosition = LatLng(position.latitude, position.longitude);
+      LatLng closest = findClosestTerpiez(newPosition);
+      double distance = haversine(
+          newPosition.latitude, newPosition.longitude,
+          closest.latitude, closest.longitude);
+
+      setState(() {
+        _currentPosition = newPosition;
+        _closestDistance = "${distance.toStringAsFixed(2)} meters";
+      });
+
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(newPosition),
+      );
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget buildPortState(BuildContext context) {
     return Column(
       children: [
         Align(
@@ -116,9 +147,9 @@ class _PortStateState extends State<PortState> {
               target: _currentPosition ?? LatLng(38.9869, -76.9426),
               zoom: 14.0,
             ),
-            myLocationEnabled: true,  // Shows user's current location
+            myLocationEnabled: true,
             myLocationButtonEnabled: true,
-            markers: _createMarkers(),
+            markers: markers,
             gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
               Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
               Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
@@ -132,39 +163,15 @@ class _PortStateState extends State<PortState> {
           child: Column(
             children: [
               Text("Closest Terpiez:"),
-              Text("124.0m"),
+              Text(_closestDistance),
             ],
           ),
         ),
       ],
     );
   }
-}
 
-
-class LandState extends StatefulWidget {
-  @override
-  _LandStateState createState() => _LandStateState();
-}
-
-class _LandStateState extends State<LandState> {
-  LatLng? _currentPosition;
-
-  @override
-  void initState() {
-    super.initState();
-    _getLocation();
-  }
-
-  Future<void> _getLocation() async {
-    LatLng position = await getUserLocation();
-    setState(() {
-      _currentPosition = position;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+   Widget buildLandState(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -177,7 +184,7 @@ class _LandStateState extends State<LandState> {
             ),
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
-            markers: _createMarkers(),
+            markers: markers,
             gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
               Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
               Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
@@ -187,7 +194,7 @@ class _LandStateState extends State<LandState> {
           ),
         ),
         Expanded(
-          flex: 2,
+          flex: 1,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -196,11 +203,32 @@ class _LandStateState extends State<LandState> {
                 style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
               ),
               Text("Closest Terpiez:"),
-              Text("124.0m", style: TextStyle(fontSize: 24)),
+              Text(_closestDistance, style: TextStyle(fontSize: 24)),
             ],
           ),
         ),
       ],
     );
   }
+}
+
+
+class PortState extends BaseState {
+  @override
+  _PortStateState createState() => _PortStateState();
+}
+
+class LandState extends BaseState {
+  @override
+  _LandStateState createState() => _LandStateState();
+}
+
+class _PortStateState extends BaseStatefulState<PortState> {
+  @override
+  Widget build(BuildContext context) => buildPortState(context);
+}
+
+class _LandStateState extends BaseStatefulState<LandState> {
+  @override
+  Widget build(BuildContext context) => buildLandState(context);
 }
