@@ -8,7 +8,8 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:math';
 
 
-// Function to calculate the distance using the Haversine formula
+// This function calculates the distance in meters between two coordinate 
+// using the haversine formula
 double haversine(double lat1, double lon1, double lat2, double lon2) {
   const double earthRadius = 6371000.0; // Earth's radius in meters
 
@@ -26,11 +27,14 @@ double haversine(double lat1, double lon1, double lat2, double lon2) {
   return earthRadius * c; // Distance in meters
 }
 
-// Terpiez locations
+
+// This is an array for Terpiez locations
 final List<LatLng> terpiezLocations = [
   LatLng(38.9858, -76.9368), // Terpiez 1
   LatLng(38.9900, -76.9400), // Terpiez 2
+  LatLng(38.989744, -76.935943), // Terpiez 3
 ];
+
 
 // Function to find the closest Terpiez location
 LatLng findClosestTerpiez(LatLng currentPosition) {
@@ -91,6 +95,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   LatLng? _currentPosition;
   String _closestDistance = "Calculating...";
   GoogleMapController? _mapController;
+  bool _canCatch = false;
 
   Set<Marker> get markers => terpiezLocations.asMap().entries.map((entry) {
     int index = entry.key;
@@ -123,12 +128,19 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
       setState(() {
         _currentPosition = newPosition;
         _closestDistance = "${distance.toStringAsFixed(2)} meters";
+        _canCatch = distance <= 10;
       });
 
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(newPosition),
       );
     });
+  }
+
+  void _catchTerpiez(BuildContext context) {
+    if (_canCatch) {
+      Provider.of<Userdata>(context, listen: false).numCaught++;
+    }
   }
 
   Widget buildPortState(BuildContext context) {
@@ -164,6 +176,10 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
             children: [
               Text("Closest Terpiez:"),
               Text(_closestDistance),
+              ElevatedButton(
+                onPressed: _canCatch ? () => _catchTerpiez(context) : null,
+                child: Text("Catch"),
+              ),
             ],
           ),
         ),
@@ -171,7 +187,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     );
   }
 
-   Widget buildLandState(BuildContext context) {
+  Widget buildLandState(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -204,6 +220,10 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
               ),
               Text("Closest Terpiez:"),
               Text(_closestDistance, style: TextStyle(fontSize: 24)),
+              ElevatedButton(
+                onPressed: _canCatch ? () => _catchTerpiez(context) : null,
+                child: Text("Catch"),
+              ),
             ],
           ),
         ),
@@ -211,7 +231,6 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     );
   }
 }
-
 
 class PortState extends BaseState {
   @override
