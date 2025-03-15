@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'userData.dart';
 import 'package:flutter/foundation.dart' show Factory;
@@ -60,17 +61,28 @@ LatLng findClosestTerpiez(LatLng currentPosition) {
 }
 
 // Function to get current location
-Future<LatLng> getUserLocation() async {
+Future<LatLng?> getUserLocation() async {
   LocationPermission permission = await Geolocator.checkPermission();
+
   if (permission == LocationPermission.denied) {
     permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      return null;
+    }
+  }
+
+  if (permission == LocationPermission.deniedForever) {
+    openAppSettings(); // Opens app settings if the user denied it forever, just in case :)
+    return null;
   }
 
   Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high);
+    desiredAccuracy: LocationAccuracy.high,
+  );
 
   return LatLng(position.latitude, position.longitude);
 }
+
 
 class FinderScreen extends StatelessWidget {
   @override
@@ -111,31 +123,70 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
 
   @override
   void initState() {
-    super.initState();
-    _startLocationUpdates();
+  super.initState();
+  _checkAndStartLocationUpdates(); // Checking permissions before starting the map
+}
+
+Future<void> _checkAndStartLocationUpdates() async {
+  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    return;
   }
 
-  void _startLocationUpdates() {
-    Geolocator.getPositionStream(
-      locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
-    ).listen((Position position) {
-      LatLng newPosition = LatLng(position.latitude, position.longitude);
-      LatLng closest = findClosestTerpiez(newPosition);
-      double distance = haversine(
-          newPosition.latitude, newPosition.longitude,
-          closest.latitude, closest.longitude);
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      return;
+    }
+  }
 
-      setState(() {
-        _currentPosition = newPosition;
-        _closestDistance = "${distance.toStringAsFixed(2)} meters";
-        _canCatch = distance <= 10;
-      });
+  if (permission == LocationPermission.deniedForever) {
+    openAppSettings();
+    return;
+  }
 
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(newPosition),
-      );
+  _startLocationUpdates(); // Updates location if permission is given
+}
+
+
+void _startLocationUpdates() async {
+  LocationPermission permission = await Geolocator.checkPermission();
+
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      return; // Stop execution if permission is denied
+    }
+  }
+
+  if (permission == LocationPermission.deniedForever) {
+    openAppSettings(); // Direct user to manually enable permissions
+    return;
+  }
+
+  // Start listening for location updates only if permission is granted
+  Geolocator.getPositionStream(
+    locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
+  ).listen((Position position) {
+    LatLng newPosition = LatLng(position.latitude, position.longitude);
+    LatLng closest = findClosestTerpiez(newPosition);
+    double distance = haversine(
+        newPosition.latitude, newPosition.longitude,
+        closest.latitude, closest.longitude);
+
+    setState(() {
+      _currentPosition = newPosition;
+      _closestDistance = "${distance.toStringAsFixed(2)} meters";
+      _canCatch = distance <= 10;
     });
-  }
+
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLng(newPosition),
+    );
+  });
+}
+
 
   void _catchTerpiez(BuildContext context) {
     if (_canCatch) {
@@ -155,6 +206,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
         ),
         Expanded(
           child: GoogleMap(
+            mapType: MapType.normal,
             initialCameraPosition: CameraPosition(
               target: _currentPosition ?? LatLng(38.9869, -76.9426),
               zoom: 14.0,
@@ -194,6 +246,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
         Expanded(
           flex: 1,
           child: GoogleMap(
+            mapType: MapType.normal,
             initialCameraPosition: CameraPosition(
               target: _currentPosition ?? LatLng(38.9869, -76.9426),
               zoom: 14.0,
