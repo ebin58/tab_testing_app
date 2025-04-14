@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'StatsScreen.dart';
 import 'ListScreen.dart';
 import 'FinderScreen.dart';
 import 'userData.dart';
-
+import 'redisLogin.dart';
 
 void main() {
   runApp(ChangeNotifierProvider(create: (context) => 
@@ -14,10 +15,38 @@ void main() {
     )
   );
 }
-
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+  bool loadedCred = false;
+  @override
+  void initState(){
+    super.initState();
+    checkCreds();
+  }
+  // Checks if Redis credentials exist in secure storage
+   Future<void> checkCreds() async {
+    final storage = FlutterSecureStorage();
+    String? username = await storage.read(key: 'redisUsername');
+    String? password = await storage.read(key: 'redisPassword');
+
+    setState(() {
+      loadedCred = (username != null && password != null);
+    });
+  }
+
+  // Called after successful login input
+  void onLoginSuccess() {
+    setState(() {
+      loadedCred = true;
+    });
+  }
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -27,7 +56,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: MyHomePage(),
+      home: loadedCred
+          ? const MyHomePage() // show full app only if credentials exist
+          : RedisLoginScreen(onLoginSuccess: onLoginSuccess), // otherwise show login prompt
     );
   }
 }
@@ -38,6 +69,7 @@ class MyHomePage extends StatefulWidget {
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
+
 
 class _MyHomePageState extends State<MyHomePage> {
   @override
