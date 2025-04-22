@@ -15,10 +15,6 @@ class Userdata extends ChangeNotifier {
 
   List<CaughtTerpiez> caughtList = [];
 
-  // Userdata() {
-  //   initUserdata();
-  // }
-
   Future<void> initUserdata() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -34,7 +30,6 @@ class Userdata extends ChangeNotifier {
       await prefs.setString('firstLogin', firstLogin.toIso8601String());
     }
 
-    // Load saved stats if they exist
     numCaught = prefs.getInt('numCaught') ?? 0;
     dayPlayed = prefs.getInt('dayPlayed') ?? 1;
 
@@ -53,9 +48,23 @@ class Userdata extends ChangeNotifier {
   }
 
   void addCaught(CaughtTerpiez t) async {
-    caughtList.add(t);
-    numCaught++;
+    final existing = caughtList.indexWhere((x) => x.id == t.id);
+    if (existing != -1) {
+      // Add new location to existing Terpiez if not already present
+      for (final loc in t.locations) {
+        if (!caughtList[existing].locations.any((l) =>
+            (l.latitude - loc.latitude).abs() < 0.0001 &&
+            (l.longitude - loc.longitude).abs() < 0.0001)) {
+          caughtList[existing].locations.add(loc);
+        }
+      }
+    } else {
+      caughtList.add(t);
+      numCaught++;
+    }
+
     await saveStats();
+    await saveCaughtToFile(t);
     notifyListeners();
   }
 
@@ -69,6 +78,23 @@ class Userdata extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('numCaught', numCaught);
     await prefs.setInt('dayPlayed', dayPlayed);
+  }
+
+  Future<void> saveCaughtToFile(CaughtTerpiez t) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/terpiez_${t.id}.json');
+
+    await file.writeAsString(jsonEncode({
+      'id': t.id,
+      'name': t.name,
+      'description': t.description,
+      'thumbnail': t.thumbnailPath,
+      'image': t.imagePath,
+      'stats': t.stats,
+      'locations': t.locations
+          .map((loc) => {'lat': loc.latitude, 'lon': loc.longitude})
+          .toList(),
+    }));
   }
 
   Future<void> restoreCaughtFromLocalFiles() async {
@@ -91,9 +117,9 @@ class Userdata extends ChangeNotifier {
             thumbnailPath: data['thumbnail'],
             imagePath: data['image'],
             stats: Map<String, dynamic>.from(data['stats']),
-            locations: [
-              LatLng(data['latitude'], data['longitude']),
-            ],
+            locations: List<Map<String, dynamic>>.from(data['locations'])
+                .map((loc) => LatLng(loc['lat'], loc['lon']))
+                .toList(),
           ));
         } catch (e) {
           debugPrint("Failed to restore from ${file.path}: $e");
