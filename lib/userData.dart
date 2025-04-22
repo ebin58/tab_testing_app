@@ -53,21 +53,27 @@ class Userdata extends ChangeNotifier {
   }
 
   void addCaught(CaughtTerpiez t) async {
-    final existing = caughtList.indexWhere((x) => x.id == t.id);
+    // Group Terpiez by name, not ID, to merge species with same name
+    final existing = caughtList.indexWhere((x) => x.name == t.name);
     if (existing != -1) {
       // Add new location to existing Terpiez if not already present
+      bool addedNewLocation = false;
       for (final loc in t.locations) {
         if (!caughtList[existing].locations.any((l) =>
             (l.latitude - loc.latitude).abs() < 0.0001 &&
             (l.longitude - loc.longitude).abs() < 0.0001)) {
           caughtList[existing].locations.add(loc);
+          addedNewLocation = true;
         }
       }
-      await saveCaughtToFile(caughtList[existing]);
+      if (addedNewLocation) {
+        await saveCaughtToFile(caughtList[existing]);
+        numCaught++;
+      }
     } else {
       caughtList.add(t);
-      numCaught++;
       await saveCaughtToFile(t);
+      numCaught++;
     }
 
     await saveStats();
@@ -116,9 +122,10 @@ class Userdata extends ChangeNotifier {
         try {
           final data = jsonDecode(await file.readAsString());
 
-          final allLocations = List<Map<String, dynamic>>.from(data['locations'])
-              .map((loc) => LatLng(loc['lat'], loc['lon']))
-              .toList();
+          final allLocations =
+              List<Map<String, dynamic>>.from(data['locations'])
+                  .map((loc) => LatLng(loc['lat'], loc['lon']))
+                  .toList();
 
           // Remove duplicate locations
           final uniqueLocations = <LatLng>[];
@@ -130,15 +137,27 @@ class Userdata extends ChangeNotifier {
             }
           }
 
-          caughtList.add(CaughtTerpiez(
-            id: data['id'],
-            name: data['name'],
-            description: data['description'],
-            thumbnailPath: data['thumbnail'],
-            imagePath: data['image'],
-            stats: Map<String, dynamic>.from(data['stats']),
-            locations: uniqueLocations,
-          ));
+          final existingIndex =
+              caughtList.indexWhere((x) => x.name == data['name']);
+          if (existingIndex != -1) {
+            for (final loc in uniqueLocations) {
+              if (!caughtList[existingIndex].locations.any((l) =>
+                  (l.latitude - loc.latitude).abs() < 0.0001 &&
+                  (l.longitude - loc.longitude).abs() < 0.0001)) {
+                caughtList[existingIndex].locations.add(loc);
+              }
+            }
+          } else {
+            caughtList.add(CaughtTerpiez(
+              id: data['id'],
+              name: data['name'],
+              description: data['description'],
+              thumbnailPath: data['thumbnail'],
+              imagePath: data['image'],
+              stats: Map<String, dynamic>.from(data['stats']),
+              locations: uniqueLocations,
+            ));
+          }
         } catch (e) {
           debugPrint("Failed to restore from ${file.path}: $e");
         }
