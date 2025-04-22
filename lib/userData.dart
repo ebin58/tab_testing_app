@@ -15,6 +15,10 @@ class Userdata extends ChangeNotifier {
 
   List<CaughtTerpiez> caughtList = [];
 
+  // Userdata() {
+  //   initUserdata();
+  // }
+
   Future<void> initUserdata() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -30,6 +34,7 @@ class Userdata extends ChangeNotifier {
       await prefs.setString('firstLogin', firstLogin.toIso8601String());
     }
 
+    // Load saved stats if they exist
     numCaught = prefs.getInt('numCaught') ?? 0;
     dayPlayed = prefs.getInt('dayPlayed') ?? 1;
 
@@ -58,13 +63,14 @@ class Userdata extends ChangeNotifier {
           caughtList[existing].locations.add(loc);
         }
       }
+      await saveCaughtToFile(caughtList[existing]);
     } else {
       caughtList.add(t);
       numCaught++;
+      await saveCaughtToFile(t);
     }
 
     await saveStats();
-    await saveCaughtToFile(t);
     notifyListeners();
   }
 
@@ -110,6 +116,20 @@ class Userdata extends ChangeNotifier {
         try {
           final data = jsonDecode(await file.readAsString());
 
+          final allLocations = List<Map<String, dynamic>>.from(data['locations'])
+              .map((loc) => LatLng(loc['lat'], loc['lon']))
+              .toList();
+
+          // Remove duplicate locations
+          final uniqueLocations = <LatLng>[];
+          for (final loc in allLocations) {
+            if (!uniqueLocations.any((l) =>
+                (l.latitude - loc.latitude).abs() < 0.0001 &&
+                (l.longitude - loc.longitude).abs() < 0.0001)) {
+              uniqueLocations.add(loc);
+            }
+          }
+
           caughtList.add(CaughtTerpiez(
             id: data['id'],
             name: data['name'],
@@ -117,9 +137,7 @@ class Userdata extends ChangeNotifier {
             thumbnailPath: data['thumbnail'],
             imagePath: data['image'],
             stats: Map<String, dynamic>.from(data['stats']),
-            locations: List<Map<String, dynamic>>.from(data['locations'])
-                .map((loc) => LatLng(loc['lat'], loc['lon']))
-                .toList(),
+            locations: uniqueLocations,
           ));
         } catch (e) {
           debugPrint("Failed to restore from ${file.path}: $e");
