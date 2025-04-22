@@ -44,7 +44,7 @@ class Userdata extends ChangeNotifier {
 
   void updateDaysPlayed() async {
     final now = DateTime.now();
-    dayPlayed = now.difference(firstLogin).inDays + 1;
+    dayPlayed = now.difference(firstLogin).inDays;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('dayPlayed', dayPlayed);
