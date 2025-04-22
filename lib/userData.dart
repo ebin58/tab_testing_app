@@ -96,7 +96,7 @@ class Userdata extends ChangeNotifier {
             ],
           ));
         } catch (e) {
-          debugPrint("❌ Failed to restore from ${file.path}: $e");
+          debugPrint("Failed to restore from ${file.path}: $e");
         }
       }
     }
