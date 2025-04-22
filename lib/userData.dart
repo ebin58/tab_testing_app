@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class Userdata extends ChangeNotifier {
   String playerID = '';
   int numCaught = 0;
-  int dayPlayed = 1;
+  int dayPlayed = 0;
   DateTime firstLogin = DateTime.now();
 
   List<CaughtTerpiez> caughtList = [];
