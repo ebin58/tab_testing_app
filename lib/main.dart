@@ -7,14 +7,18 @@ import 'FinderScreen.dart';
 import 'userData.dart';
 import 'redisLogin.dart';
 
-void main() {
-  runApp(ChangeNotifierProvider(create: (context) => 
-  Userdata(),
-    child: 
-      (const MyApp())
-    )
-  );
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final userData = Userdata();
+  await userData.initUserdata();
+
+  runApp(ChangeNotifierProvider.value(
+    value: userData,
+    child: const MyApp(),
+  ));
 }
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -23,15 +27,17 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   bool loadedCred = false;
   @override
-  void initState(){
+  void initState() {
+    // **** For testing ****
+    // debugPrint("HELLLLLOOOOOOOO");
     super.initState();
     checkCreds();
   }
+
   // Checks if Redis credentials exist in secure storage
-   Future<void> checkCreds() async {
+  Future<void> checkCreds() async {
     final storage = FlutterSecureStorage();
     String? username = await storage.read(key: 'redisUsername');
     String? password = await storage.read(key: 'redisPassword');
@@ -41,13 +47,13 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  // Called after successful login input
+  // will be called after successful login input
   void onLoginSuccess() {
     setState(() {
       loadedCred = true;
     });
   }
-  // This widget is the root of your application.
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -58,7 +64,8 @@ class _MyAppState extends State<MyApp> {
       ),
       home: loadedCred
           ? const MyHomePage() // show full app only if credentials exist
-          : RedisLoginScreen(onLoginSuccess: onLoginSuccess), // otherwise show login prompt
+          : RedisLoginScreen(
+              onLoginSuccess: onLoginSuccess), // otherwise show login prompt
     );
   }
 }
@@ -69,7 +76,6 @@ class MyHomePage extends StatefulWidget {
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
-
 
 class _MyHomePageState extends State<MyHomePage> {
   @override
@@ -96,17 +102,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 text: "List",
               ),
             ])),
-        body: TabBarView(children: [
-          StatsScreen(),
-          FinderScreen(),
-          ListScreen()
-        ]),
+        body:
+            TabBarView(children: [StatsScreen(), FinderScreen(), ListScreen()]),
       ),
     ));
   }
 }
-
-
-
-
-

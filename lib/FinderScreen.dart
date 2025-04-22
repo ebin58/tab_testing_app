@@ -1,15 +1,24 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:tab_testing_app/redisUserBackup.dart';
 import 'userData.dart';
 import 'package:flutter/foundation.dart' show Factory;
 import 'package:flutter/gestures.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math';
+import 'redisService.dart';
+import 'redisTerpiezInfo.dart';
 
+// at the end of _catchTerpiez the function writes back to redis and disconnects.
 
-// This function calculates the distance in meters between two coordinate 
+// This function calculates the distance in meters between two coordinate
 // using the haversine formula
 double haversine(double lat1, double lon1, double lat2, double lon2) {
   const double earthRadius = 6371000.0; // Earth's radius in meters
@@ -20,45 +29,46 @@ double haversine(double lat1, double lon1, double lat2, double lon2) {
   final dLon = toRadians(lon2 - lon1);
 
   final a = sin(dLat / 2) * sin(dLat / 2) +
-      cos(toRadians(lat1)) * cos(toRadians(lat2)) *
-          sin(dLon / 2) * sin(dLon / 2);
+      cos(toRadians(lat1)) *
+          cos(toRadians(lat2)) *
+          sin(dLon / 2) *
+          sin(dLon / 2);
 
   final c = 2 * atan2(sqrt(a), sqrt(1 - a));
 
   return earthRadius * c; // Distance in meters
 }
 
+// This is an array for Terpiez locations for testing purposes.
+// final List<LatLng> terpiezLocations = [
+//   LatLng(38.9858, -76.9368), // Terpiez 1
+//   LatLng(38.9900, -76.9400), // Terpiez 2
+//   LatLng(38.989744, -76.935943), // Terpiez 3
+// ];
 
-// This is an array for Terpiez locations
-final List<LatLng> terpiezLocations = [
-  LatLng(38.9858, -76.9368), // Terpiez 1
-  LatLng(38.9900, -76.9400), // Terpiez 2
-  LatLng(38.989744, -76.935943), // Terpiez 3
-];
-
-
+// For testing //
 // Function to find the closest Terpiez location
-LatLng findClosestTerpiez(LatLng currentPosition) {
-  LatLng closest = terpiezLocations[0];
-  double minDistance = haversine(
-      currentPosition.latitude,
-      currentPosition.longitude,
-      closest.latitude,
-      closest.longitude);
+// LatLng findClosestTerpiez(LatLng currentPosition) {
+//   LatLng closest = terpiezLocations[0];
+//   double minDistance = haversine(
+//       currentPosition.latitude,
+//       currentPosition.longitude,
+//       closest.latitude,
+//       closest.longitude);
 
-  for (var terpiez in terpiezLocations) {
-    double distance = haversine(
-        currentPosition.latitude,
-        currentPosition.longitude,
-        terpiez.latitude,
-        terpiez.longitude);
-    if (distance < minDistance) {
-      minDistance = distance;
-      closest = terpiez;
-    }
-  }
-  return closest;
-}
+//   for (var terpiez in terpiezLocations) {
+//     double distance = haversine(
+//         currentPosition.latitude,
+//         currentPosition.longitude,
+//         terpiez.latitude,
+//         terpiez.longitude);
+//     if (distance < minDistance) {
+//       minDistance = distance;
+//       closest = terpiez;
+//     }
+//   }
+//   return closest;
+// }
 
 // Function to get current location
 Future<LatLng?> getUserLocation() async {
@@ -83,14 +93,14 @@ Future<LatLng?> getUserLocation() async {
   return LatLng(position.latitude, position.longitude);
 }
 
-
 class FinderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: OrientationBuilder(
         builder: (context, orientation) {
-          final s = orientation == Orientation.portrait ? PortState() : LandState();
+          final s =
+              orientation == Orientation.portrait ? PortState() : LandState();
           return Padding(
             padding: EdgeInsets.all(10),
             child: s,
@@ -109,89 +119,225 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   GoogleMapController? _mapController;
   bool _canCatch = false;
 
-  Set<Marker> get markers => terpiezLocations.asMap().entries.map((entry) {
-    int index = entry.key;
-    LatLng loc = entry.value;
-    return Marker(
-      markerId: MarkerId("${loc.latitude},${loc.longitude}"),
-      position: loc,
-      infoWindow: InfoWindow(title: "Terpiez ${index + 1}"),
-      icon: BitmapDescriptor.defaultMarkerWithHue(
-          (BitmapDescriptor.hueRed + (index * 30)) % 360),
-    );
-  }).toSet();
+  // variables for terpiez from redis database
+  final RedisService _redisService = RedisService();
+  late Redisterpiezinfo _redisInfo;
+  Map<String, dynamic>? _closestTerpiez;
+
+  Set<Marker> get markers {
+    final Set<Marker> result = {};
+
+    if (_closestTerpiez != null) {
+      final lat = _closestTerpiez!['latitude'];
+      final lon = _closestTerpiez!['longitude'];
+      final id = _closestTerpiez!['id']; // Use real ID
+
+      result.add(Marker(
+        markerId: MarkerId(id),
+        position: LatLng(lat, lon),
+        infoWindow: InfoWindow(title: _closestTerpiez!['name']),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      ));
+    }
+
+    return result;
+  }
 
   @override
   void initState() {
-  super.initState();
-  _checkAndStartLocationUpdates(); // Checking permissions before starting the map
-}
-
-Future<void> _checkAndStartLocationUpdates() async {
-  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  if (!serviceEnabled) {
-    return;
+    super.initState();
+    _redisInfo = Redisterpiezinfo(_redisService);
+    _checkAndStartLocationUpdates(); // Checking permissions before starting the map
   }
 
-  LocationPermission permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
+  Future<void> _checkAndStartLocationUpdates() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
       return;
     }
-  }
 
-  if (permission == LocationPermission.deniedForever) {
-    openAppSettings();
-    return;
-  }
-
-  _startLocationUpdates(); // Updates location if permission is given
-}
-
-
-void _startLocationUpdates() async {
-  LocationPermission permission = await Geolocator.checkPermission();
-
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
-      return; // Stop execution if permission is denied
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return;
+      }
     }
+
+    if (permission == LocationPermission.deniedForever) {
+      openAppSettings();
+      return;
+    }
+
+    _startLocationUpdates(); // Updates location if permission is given
   }
 
-  if (permission == LocationPermission.deniedForever) {
-    openAppSettings(); // Direct user to manually enable permissions
-    return;
+  // this methhod gets start location and continuesly checks terpiz loctions
+  void _startLocationUpdates() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return; // Stop execution if permission is denied
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      openAppSettings(); // Direct user to manually enable permissions
+      return;
+    }
+
+    // Start listening for location updates only if permission is granted
+    Geolocator.getPositionStream(
+      locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
+    ).listen((Position position) async {
+      LatLng newPosition = LatLng(position.latitude, position.longitude);
+
+      // Fetch list of terpiez from Redis
+      final rawList = await _redisInfo.getTerpiezLocations();
+      if (rawList.isEmpty) return;
+
+      final List<Map<String, dynamic>> terpiezList = [];
+
+      final userData = Provider.of<Userdata>(context, listen: false);
+
+      for (final loc in rawList) {
+        final id = loc['id'];
+        final lat = loc['latitude'];
+        final lon = loc['longitude'];
+
+        final alreadyCaught = userData.caughtList.any((t) =>
+            t.id == id &&
+            t.locations.any((l) =>
+                (l.latitude - lat).abs() < 0.0001 &&
+                (l.longitude - lon).abs() < 0.0001));
+
+        if (alreadyCaught) continue; // skip this location
+
+        final details = await _redisInfo.getTerpiezInfo(id);
+        terpiezList.add({
+          ...loc,
+          'name': details['name'] ?? 'Unknown',
+        });
+      }
+
+      // Find closest Terpiez from Redis using the haversine function
+      Map<String, dynamic>? closest;
+      double minDist = double.infinity;
+
+      for (var terp in terpiezList) {
+        final lat = terp['latitude'];
+        final lon = terp['longitude'];
+        final dist = haversine(
+          newPosition.latitude,
+          newPosition.longitude,
+          lat,
+          lon,
+        );
+
+        if (dist < minDist) {
+          minDist = dist;
+          closest = terp;
+        }
+      }
+
+      // Updates the UI
+      setState(() {
+        _currentPosition = newPosition;
+        _closestTerpiez = closest;
+        _closestDistance = closest != null
+            ? "${minDist.toStringAsFixed(2)} meters"
+            : "None nearby";
+        _canCatch = closest != null && minDist <= 10;
+      });
+
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(newPosition),
+      );
+    });
   }
 
-  // Start listening for location updates only if permission is granted
-  Geolocator.getPositionStream(
-    locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
-  ).listen((Position position) {
-    LatLng newPosition = LatLng(position.latitude, position.longitude);
-    LatLng closest = findClosestTerpiez(newPosition);
-    double distance = haversine(
-        newPosition.latitude, newPosition.longitude,
-        closest.latitude, closest.longitude);
+  void _catchTerpiez(BuildContext context) async {
+    if (!_canCatch || _closestTerpiez == null) return;
+
+    final id = _closestTerpiez!['id'];
+    final lat = _closestTerpiez!['latitude'];
+    final lon = _closestTerpiez!['longitude'];
+
+    final userData = Provider.of<Userdata>(context, listen: false);
+
+    // Prevent duplicate catch at the same location
+    final alreadyCaught = userData.caughtList.any((t) =>
+        t.id == id &&
+        t.locations.any((loc) =>
+            (loc.latitude - lat).abs() < 0.0001 &&
+            (loc.longitude - lon).abs() < 0.0001));
+
+    if (alreadyCaught) {
+      // **** For testing ****
+      // debugPrint("This Terpiez at this location has already been caught.");
+      return;
+    }
+
+    final redisInfo = Redisterpiezinfo(_redisService);
+
+    final info = await redisInfo.getTerpiezInfo(id);
+    final thumbData =
+        await redisInfo.fetchImageDataFromRedis(info['thumbnail']);
+    final fullData = await redisInfo.fetchImageDataFromRedis(info['image']);
+
+    final dir = await getApplicationDocumentsDirectory();
+
+    final thumbFile = File('${dir.path}/thumb_$id.png');
+    final fullFile = File('${dir.path}/full_$id.png');
+
+    await thumbFile.writeAsBytes(base64Decode(thumbData['image64']));
+    await fullFile.writeAsBytes(base64Decode(fullData['image64']));
+
+    final caught = CaughtTerpiez(
+      id: info['id'],
+      name: info['name'],
+      description: info['description'],
+      thumbnailPath: thumbFile.path,
+      imagePath: fullFile.path,
+      stats: Map<String, dynamic>.from(info['stats']),
+      locations: [
+        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+      ],
+    );
+
+    userData.addCaught(caught); // Also increments numCaught
 
     setState(() {
-      _currentPosition = newPosition;
-      _closestDistance = "${distance.toStringAsFixed(2)} meters";
-      _canCatch = distance <= 10;
+      _canCatch = false;
+      _closestTerpiez = null;
     });
 
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(newPosition),
-    );
-  });
-}
+    // **** For testing ****
+    // debugPrint("Caught and added to list: ${info['name']}");
 
-
-  void _catchTerpiez(BuildContext context) {
-    if (_canCatch) {
-      Provider.of<Userdata>(context, listen: false).numCaught++;
+    final jsonFile = File('${dir.path}/terpiez_${id}.json');
+    await jsonFile.writeAsString(jsonEncode({
+      'id': caught.id,
+      'name': caught.name,
+      'description': caught.description,
+      'thumbnail': caught.thumbnailPath,
+      'image': caught.imagePath,
+      'stats': caught.stats,
+      'latitude': caught.locations.first.latitude,
+      'longitude': caught.locations.first.longitude,
+    }));
+    // Back up to Redis
+    final storage = FlutterSecureStorage();
+    final username = await storage.read(key: 'redisUsername');
+    if (username != null) {
+      await backupUserDataToRedis(username, userData);
+      await _redisService.disconnect();
     }
+
+    // Now disconnect to avoid dangling connections
+    await _redisService.disconnect();
   }
 
   Widget buildPortState(BuildContext context) {
@@ -218,7 +364,8 @@ void _startLocationUpdates() async {
               Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
               Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
               Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-              Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
+              Factory<VerticalDragGestureRecognizer>(
+                  () => VerticalDragGestureRecognizer()),
             },
           ),
         ),
@@ -258,7 +405,8 @@ void _startLocationUpdates() async {
               Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
               Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
               Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-              Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
+              Factory<VerticalDragGestureRecognizer>(
+                  () => VerticalDragGestureRecognizer()),
             },
           ),
         ),

@@ -23,7 +23,7 @@ class RedisLoginScreenState extends State<RedisLoginScreen> {
       await _secureStorage.write(key: 'redisUsername', value: username);
       await _secureStorage.write(key: 'redisPassword', value: password);
 
-      widget.onLoginSuccess(); // Notify app to continue
+      widget.onLoginSuccess(); // Notifies the app to continue
     }
   }
 
