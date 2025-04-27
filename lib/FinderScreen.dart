@@ -317,17 +317,18 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     // **** For testing ****
     // debugPrint("Caught and added to list: ${info['name']}");
 
-    final jsonFile = File('${dir.path}/terpiez_${id}.json');
-    await jsonFile.writeAsString(jsonEncode({
-      'id': caught.id,
-      'name': caught.name,
-      'description': caught.description,
-      'thumbnail': caught.thumbnailPath,
-      'image': caught.imagePath,
-      'stats': caught.stats,
-      'latitude': caught.locations.first.latitude,
-      'longitude': caught.locations.first.longitude,
-    }));
+    // final jsonFile = File('${dir.path}/terpiez_${id}.json');
+    // await jsonFile.writeAsString(jsonEncode({
+    //   'id': caught.id,
+    //   'name': caught.name,
+    //   'description': caught.description,
+    //   'thumbnail': caught.thumbnailPath,
+    //   'image': caught.imagePath,
+    //   'stats': caught.stats,
+    //   'latitude': caught.locations.first.latitude,
+    //   'longitude': caught.locations.first.longitude,
+    // }));
+
     // Back up to Redis
     final storage = FlutterSecureStorage();
     final username = await storage.read(key: 'redisUsername');
@@ -338,6 +339,47 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
 
     // Now disconnect to avoid dangling connections
     await _redisService.disconnect();
+
+    // Showing the pop up to the user
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.file(
+                File(caught.thumbnailPath),
+                width: 150,
+                height: 150,
+                fit: BoxFit.cover,
+              ),
+              SizedBox(height: 20),
+              Text(
+                caught.name,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              Text(
+                "Nice work! You've caught ${caught.name}.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text("OK"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget buildPortState(BuildContext context) {
