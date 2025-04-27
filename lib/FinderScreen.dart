@@ -20,7 +20,7 @@ import 'redisTerpiezInfo.dart';
 
 // at the end of _catchTerpiez the function writes back to redis and disconnects.
 
-// This function calculates the distance in meters between two coordinate
+// This function calculates the distance in meters between two coordinates
 // using the haversine formula
 double haversine(double lat1, double lon1, double lat2, double lon2) {
   const double earthRadius = 6371000.0; // Earth's radius in meters
@@ -293,33 +293,49 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     }
     await _redisService.disconnect();
 
-    // pop-up dialog
+    // pop-up dialog now scrollable and safe in landscape mode
     await showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          content: Column(
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.file(File(caught.thumbnailPath),
-                  width: 150, height: 150, fit: BoxFit.cover),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(dialogContext).size.width * 0.6,
+                  maxHeight: MediaQuery.of(dialogContext).size.height * 0.4,
+                ),
+                child: Image.file(
+                  File(caught.thumbnailPath),
+                  fit: BoxFit.cover,
+                ),
+              ),
               SizedBox(height: 20),
-              Text(caught.name,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text(
+                caught.name,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
               SizedBox(height: 10),
-              Text("Nice work! You've caught ${caught.name}.",
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text("OK"),
+              Text(
+                "Nice work! You've caught ${caught.name}.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
               ),
             ],
           ),
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text("OK"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -339,6 +355,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
             markers: markers,
+            onMapCreated: (c) => _mapController = c,
             gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
               Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
               Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
@@ -379,6 +396,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
           myLocationEnabled: true,
           myLocationButtonEnabled: true,
           markers: markers,
+          onMapCreated: (c) => _mapController = c,
           gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
             Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
             Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
@@ -397,7 +415,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
           Text(_closestDistance, style: TextStyle(fontSize: 24)),
           SizedBox(height: 16),
           Icon(Icons.vibration,
-              size: 48, color: _canCatch ? Colors.green : Colors.grey),
+              size: 36, color: _canCatch ? Colors.green : Colors.grey),
           SizedBox(height: 8),
           Text(_canCatch ? "Shake to catch" : "Move closer to a Terpiez",
               style: TextStyle(fontSize: 18)),
