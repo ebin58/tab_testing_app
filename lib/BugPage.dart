@@ -71,6 +71,7 @@ class BugPageState extends State<BugPage> {
                 barOffsets.length,
                 (index) => AnimatedPositioned(
                   duration: Duration(milliseconds: 100),
+                  
                   left: 50 + index * 60, // Keep horizontal positions fixed
                   top: barOffsets[index], // Move bars up and down
                   child: Container(
