@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -7,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:tab_testing_app/redisUserBackup.dart';
 import 'userData.dart';
 import 'package:flutter/foundation.dart' show Factory;
@@ -48,48 +50,21 @@ double haversine(double lat1, double lon1, double lat2, double lon2) {
 
 // For testing //
 // Function to find the closest Terpiez location
-// LatLng findClosestTerpiez(LatLng currentPosition) {
-//   LatLng closest = terpiezLocations[0];
-//   double minDistance = haversine(
-//       currentPosition.latitude,
-//       currentPosition.longitude,
-//       closest.latitude,
-//       closest.longitude);
-
-//   for (var terpiez in terpiezLocations) {
-//     double distance = haversine(
-//         currentPosition.latitude,
-//         currentPosition.longitude,
-//         terpiez.latitude,
-//         terpiez.longitude);
-//     if (distance < minDistance) {
-//       minDistance = distance;
-//       closest = terpiez;
-//     }
-//   }
-//   return closest;
-// }
+// LatLng findClosestTerpiez(LatLng currentPosition) { … }
 
 // Function to get current location
 Future<LatLng?> getUserLocation() async {
   LocationPermission permission = await Geolocator.checkPermission();
-
   if (permission == LocationPermission.denied) {
     permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      return null;
-    }
+    if (permission == LocationPermission.denied) return null;
   }
-
   if (permission == LocationPermission.deniedForever) {
-    openAppSettings(); // Opens app settings if the user denied it forever, just in case :)
+    openAppSettings();
     return null;
   }
-
   Position position = await Geolocator.getCurrentPosition(
-    desiredAccuracy: LocationAccuracy.high,
-  );
-
+      desiredAccuracy: LocationAccuracy.high);
   return LatLng(position.latitude, position.longitude);
 }
 
@@ -101,10 +76,7 @@ class FinderScreen extends StatelessWidget {
         builder: (context, orientation) {
           final s =
               orientation == Orientation.portrait ? PortState() : LandState();
-          return Padding(
-            padding: EdgeInsets.all(10),
-            child: s,
-          );
+          return Padding(padding: EdgeInsets.all(10), child: s);
         },
       ),
     );
@@ -119,6 +91,13 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   GoogleMapController? _mapController;
   bool _canCatch = false;
 
+  // sensor subscription for shake detection
+  StreamSubscription<AccelerometerEvent>? _accelSub;
+  static const double _shakeThreshold = 10.0;
+
+  // guard so one shake only prompts one catch and dialog popup
+  bool _isCatching = false;
+
   // variables for terpiez from redis database
   final RedisService _redisService = RedisService();
   late Redisterpiezinfo _redisInfo;
@@ -126,12 +105,10 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
 
   Set<Marker> get markers {
     final Set<Marker> result = {};
-
     if (_closestTerpiez != null) {
       final lat = _closestTerpiez!['latitude'];
       final lon = _closestTerpiez!['longitude'];
-      final id = _closestTerpiez!['id']; // Use real ID
-
+      final id = _closestTerpiez!['id'];
       result.add(Marker(
         markerId: MarkerId(id),
         position: LatLng(lat, lon),
@@ -139,7 +116,6 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ));
     }
-
     return result;
   }
 
@@ -147,48 +123,58 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   void initState() {
     super.initState();
     _redisInfo = Redisterpiezinfo(_redisService);
+
+    // listen for shakes when a Terpiez is in range
+    _accelSub = accelerometerEventStream().listen((event) {
+      if (_canCatch &&
+          !_isCatching &&
+          (event.x.abs() > _shakeThreshold ||
+              event.y.abs() > _shakeThreshold ||
+              event.z.abs() > _shakeThreshold)) {
+        _isCatching = true; // prevent re‐entry
+        _catchTerpiez(context).whenComplete(() {
+          _isCatching = false; // re‐enable after done
+        });
+      }
+    });
+
     _checkAndStartLocationUpdates(); // Checking permissions before starting the map
+  }
+
+  @override
+  void dispose() {
+    _accelSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkAndStartLocationUpdates() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
+    if (!serviceEnabled) return;
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return;
-      }
+      if (permission == LocationPermission.denied) return;
     }
+    if (permission == LocationPermission.deniedForever) {
+      openAppSettings();
+      return;
+    }
+    _startLocationUpdates();
+  }
 
+  // this method gets start location and continuously checks terpiez locations
+  void _startLocationUpdates() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
     if (permission == LocationPermission.deniedForever) {
       openAppSettings();
       return;
     }
 
-    _startLocationUpdates(); // Updates location if permission is given
-  }
-
-  // this methhod gets start location and continuesly checks terpiz loctions
-  void _startLocationUpdates() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return; // Stop execution if permission is denied
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      openAppSettings(); // Direct user to manually enable permissions
-      return;
-    }
-
-    // Start listening for location updates only if permission is granted
     Geolocator.getPositionStream(
       locationSettings: LocationSettings(accuracy: LocationAccuracy.high),
     ).listen((Position position) async {
@@ -198,23 +184,19 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
       final rawList = await _redisInfo.getTerpiezLocations();
       if (rawList.isEmpty) return;
 
-      final List<Map<String, dynamic>> terpiezList = [];
-
+      final terpiezList = <Map<String, dynamic>>[];
       final userData = Provider.of<Userdata>(context, listen: false);
 
       for (final loc in rawList) {
         final id = loc['id'];
         final lat = loc['latitude'];
         final lon = loc['longitude'];
-
         final alreadyCaught = userData.caughtList.any((t) =>
             t.id == id &&
             t.locations.any((l) =>
                 (l.latitude - lat).abs() < 0.0001 &&
                 (l.longitude - lon).abs() < 0.0001));
-
-        if (alreadyCaught) continue; // skip this location
-
+        if (alreadyCaught) continue;
         final details = await _redisInfo.getTerpiezInfo(id);
         terpiezList.add({
           ...loc,
@@ -222,10 +204,9 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
         });
       }
 
-      // Find closest Terpiez from Redis using the haversine function
+      // Find closest Terpiez
       Map<String, dynamic>? closest;
       double minDist = double.infinity;
-
       for (var terp in terpiezList) {
         final lat = terp['latitude'];
         final lon = terp['longitude'];
@@ -235,14 +216,12 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
           lat,
           lon,
         );
-
         if (dist < minDist) {
           minDist = dist;
           closest = terp;
         }
       }
 
-      // Updates the UI
       setState(() {
         _currentPosition = newPosition;
         _closestTerpiez = closest;
@@ -258,13 +237,12 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     });
   }
 
-  void _catchTerpiez(BuildContext context) async {
+  Future<void> _catchTerpiez(BuildContext context) async {
     if (!_canCatch || _closestTerpiez == null) return;
 
     final id = _closestTerpiez!['id'];
     final lat = _closestTerpiez!['latitude'];
     final lon = _closestTerpiez!['longitude'];
-
     final userData = Provider.of<Userdata>(context, listen: false);
 
     // Prevent duplicate catch at the same location
@@ -273,22 +251,15 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
         t.locations.any((loc) =>
             (loc.latitude - lat).abs() < 0.0001 &&
             (loc.longitude - lon).abs() < 0.0001));
-
-    if (alreadyCaught) {
-      // **** For testing ****
-      // debugPrint("This Terpiez at this location has already been caught.");
-      return;
-    }
+    if (alreadyCaught) return;
 
     final redisInfo = Redisterpiezinfo(_redisService);
-
     final info = await redisInfo.getTerpiezInfo(id);
     final thumbData =
         await redisInfo.fetchImageDataFromRedis(info['thumbnail']);
     final fullData = await redisInfo.fetchImageDataFromRedis(info['image']);
 
     final dir = await getApplicationDocumentsDirectory();
-
     final thumbFile = File('${dir.path}/thumb_$id.png');
     final fullFile = File('${dir.path}/full_$id.png');
 
@@ -308,26 +279,10 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     );
 
     userData.addCaught(caught); // Also increments numCaught
-
     setState(() {
       _canCatch = false;
       _closestTerpiez = null;
     });
-
-    // **** For testing ****
-    // debugPrint("Caught and added to list: ${info['name']}");
-
-    // final jsonFile = File('${dir.path}/terpiez_${id}.json');
-    // await jsonFile.writeAsString(jsonEncode({
-    //   'id': caught.id,
-    //   'name': caught.name,
-    //   'description': caught.description,
-    //   'thumbnail': caught.thumbnailPath,
-    //   'image': caught.imagePath,
-    //   'stats': caught.stats,
-    //   'latitude': caught.locations.first.latitude,
-    //   'longitude': caught.locations.first.longitude,
-    // }));
 
     // Back up to Redis
     final storage = FlutterSecureStorage();
@@ -336,43 +291,29 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
       await backupUserDataToRedis(username, userData);
       await _redisService.disconnect();
     }
-
-    // disconnect to avoid dangling connections
     await _redisService.disconnect();
 
-    // Showing the pop up to the user
+    // pop-up dialog
     await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.file(
-                File(caught.thumbnailPath),
-                width: 150,
-                height: 150,
-                fit: BoxFit.cover,
-              ),
+              Image.file(File(caught.thumbnailPath),
+                  width: 150, height: 150, fit: BoxFit.cover),
               SizedBox(height: 20),
-              Text(
-                caught.name,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
+              Text(caught.name,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               SizedBox(height: 10),
-              Text(
-                "Nice work! You've caught ${caught.name}.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
+              Text("Nice work! You've caught ${caught.name}.",
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
               SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
+                onPressed: () => Navigator.of(context).pop(),
                 child: Text("OK"),
               ),
             ],
@@ -386,19 +327,15 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     return Column(
       children: [
         Align(
-          alignment: Alignment.topCenter,
-          child: Text(
-            "Terpiez Finder",
-            style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
-          ),
-        ),
+            alignment: Alignment.topCenter,
+            child: Text("Terpiez Finder",
+                style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold))),
         Expanded(
           child: GoogleMap(
             mapType: MapType.normal,
             initialCameraPosition: CameraPosition(
-              target: _currentPosition ?? LatLng(38.9869, -76.9426),
-              zoom: 14.0,
-            ),
+                target: _currentPosition ?? LatLng(38.9869, -76.9426),
+                zoom: 14.0),
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
             markers: markers,
@@ -411,67 +348,62 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
             },
           ),
         ),
+
+        // Replace Catch button with shake indicator
         Align(
           alignment: Alignment.bottomCenter,
-          child: Column(
-            children: [
-              Text("Closest Terpiez:"),
-              Text(_closestDistance),
-              ElevatedButton(
-                onPressed: _canCatch ? () => _catchTerpiez(context) : null,
-                child: Text("Catch"),
-              ),
-            ],
-          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text("Closest Terpiez:"),
+            Text(_closestDistance),
+            SizedBox(height: 12),
+            Icon(Icons.vibration,
+                size: 48, color: _canCatch ? Colors.green : Colors.grey),
+            SizedBox(height: 8),
+            Text(_canCatch ? "Shake to catch" : "Move closer to a Terpiez",
+                style: TextStyle(fontSize: 18)),
+          ]),
         ),
       ],
     );
   }
 
   Widget buildLandState(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 1,
-          child: GoogleMap(
-            mapType: MapType.normal,
-            initialCameraPosition: CameraPosition(
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(
+        flex: 1,
+        child: GoogleMap(
+          mapType: MapType.normal,
+          initialCameraPosition: CameraPosition(
               target: _currentPosition ?? LatLng(38.9869, -76.9426),
-              zoom: 14.0,
-            ),
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            markers: markers,
-            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-              Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-              Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
-              Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-              Factory<VerticalDragGestureRecognizer>(
-                  () => VerticalDragGestureRecognizer()),
-            },
-          ),
+              zoom: 14.0),
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
+          markers: markers,
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
+            Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
+            Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+            Factory<VerticalDragGestureRecognizer>(
+                () => VerticalDragGestureRecognizer()),
+          },
         ),
-        Expanded(
-          flex: 1,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                "Terpiez Finder",
-                style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold),
-              ),
-              Text("Closest Terpiez:"),
-              Text(_closestDistance, style: TextStyle(fontSize: 24)),
-              ElevatedButton(
-                onPressed: _canCatch ? () => _catchTerpiez(context) : null,
-                child: Text("Catch"),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+      ),
+      Expanded(
+        flex: 1,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          Text("Terpiez Finder",
+              style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold)),
+          Text("Closest Terpiez:"),
+          Text(_closestDistance, style: TextStyle(fontSize: 24)),
+          SizedBox(height: 16),
+          Icon(Icons.vibration,
+              size: 48, color: _canCatch ? Colors.green : Colors.grey),
+          SizedBox(height: 8),
+          Text(_canCatch ? "Shake to catch" : "Move closer to a Terpiez",
+              style: TextStyle(fontSize: 18)),
+        ]),
+      ),
+    ]);
   }
 }
 
