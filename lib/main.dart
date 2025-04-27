@@ -1,11 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
+
 import 'StatsScreen.dart';
 import 'ListScreen.dart';
 import 'FinderScreen.dart';
 import 'userData.dart';
 import 'redisLogin.dart';
+import 'redisService.dart';                     
+
+// a global key so we can show SnackBars from anywhere
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,15 +36,27 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool loadedCred = false;
+
+  // Redis‐probe fields:
+  final RedisService _redisService = RedisService();
+  Timer? _probeTimer;
+  bool _wasConnected = false;
+
   @override
   void initState() {
-    // **** For testing ****
-    // debugPrint("HELLLLLOOOOOOOO");
     super.initState();
     checkCreds();
+
+    // start our connectivity probes immediately and every 10 seconds
+    _startRedisProbes();
   }
 
-  // Checks if Redis credentials exist in secure storage
+  @override
+  void dispose() {
+    _probeTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> checkCreds() async {
     final storage = FlutterSecureStorage();
     String? username = await storage.read(key: 'redisUsername');
@@ -47,25 +67,54 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  // will be called after successful login input
   void onLoginSuccess() {
     setState(() {
       loadedCred = true;
     });
   }
 
+  // Kick off an immediate check, then schedule every 10 seconds
+  void _startRedisProbes() {
+    _checkRedis();
+    _probeTimer =
+        Timer.periodic(const Duration(seconds: 10), (_) => _checkRedis());
+  }
+
+  // Run ensureConnected() (1 s timeout inside RedisService) and
+  // show a SnackBar on state changes.
+  Future<void> _checkRedis() async {
+    final ok = await _redisService.ensureConnected();
+    if (ok && !_wasConnected) {
+      _wasConnected = true;
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text("Connection to Redis restored"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (!ok && _wasConnected) {
+      _wasConnected = false;
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text("Lost connection to Redis server"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'tab test',
+      scaffoldMessengerKey: rootScaffoldMessengerKey,  // wire up the key
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
       home: loadedCred
           ? const MyHomePage() // show full app only if credentials exist
-          : RedisLoginScreen(
-              onLoginSuccess: onLoginSuccess), // otherwise show login prompt
+          : RedisLoginScreen(onLoginSuccess: onLoginSuccess),
     );
   }
 }
@@ -81,30 +130,24 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-        child: DefaultTabController(
-      initialIndex: 0,
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-            title: Text("Terpiez"),
+      child: DefaultTabController(
+        initialIndex: 0,
+        length: 3,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text("Terpiez"),
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            bottom: TabBar(tabs: [
-              Tab(
-                icon: Icon(Icons.auto_graph),
-                text: "Stats",
-              ),
-              Tab(
-                icon: Icon(Icons.search),
-                text: "Finder",
-              ),
-              Tab(
-                icon: Icon(Icons.list),
-                text: "List",
-              ),
-            ])),
-        body:
-            TabBarView(children: [StatsScreen(), FinderScreen(), ListScreen()]),
+            bottom: const TabBar(tabs: [
+              Tab(icon: Icon(Icons.auto_graph), text: "Stats"),
+              Tab(icon: Icon(Icons.search), text: "Finder"),
+              Tab(icon: Icon(Icons.list), text: "List"),
+            ]),
+          ),
+          body: TabBarView(
+            children: [StatsScreen(), FinderScreen(), ListScreen()],
+          ),
+        ),
       ),
-    ));
+    );
   }
 }

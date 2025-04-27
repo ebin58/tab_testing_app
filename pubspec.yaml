@@ -43,6 +43,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   redis: ^4.0.0
   path_provider: ^2.1.5
+  sensors_plus: ^6.1.1
 
 dev_dependencies:
   flutter_test:

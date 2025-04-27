@@ -24,9 +24,13 @@ class RedisService {
       }
 
       _connection = RedisConnection(); // saves the connection
-      _command = await _connection!.connect(_host, _port);
+      _command = await _connection!
+          .connect(_host, _port)
+          .timeout(Duration(seconds: 1));
 
-      await _command!.send_object(['AUTH', username, password]);
+      await _command!
+          .send_object(['AUTH', username, password])
+          .timeout(Duration(seconds: 1));
 
       // **** For testing ****
       // debugPrint("Connected to Redis as $username");
@@ -34,6 +38,8 @@ class RedisService {
     } catch (e) {
       // **** For testing ****
       // debugPrint("Redis connection failed: $e");
+      _connection = null;
+      _command = null;
       return false;
     }
   }
@@ -56,15 +62,28 @@ class RedisService {
       if (_command == null) {
         // **** For testing ****
         debugPrint("Redis not connected. Connecting...");
-        return await connect();
+        // fresh connect (with 1s timeout)
+        return await connect().timeout(
+          Duration(seconds: 1),
+          onTimeout: () => false,
+        );
       } else {
-        await _command!.send_object(['JSON.GET', 'locations']);
+        // lightweight probe
+        await _command!
+            .send_object(['PING'])
+            .timeout(Duration(seconds: 1));
         return true;
       }
     } catch (e) {
       // **** For testing ****
       debugPrint("Redis connection lost. Reconnecting... ($e)");
-      return await connect();
+      // clear old state & retry
+      _connection = null;
+      _command = null;
+      return await connect().timeout(
+        Duration(seconds: 1),
+        onTimeout: () => false,
+      );
     }
   }
 }

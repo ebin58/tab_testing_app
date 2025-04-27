@@ -337,7 +337,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
       await _redisService.disconnect();
     }
 
-    // Now disconnect to avoid dangling connections
+    // disconnect to avoid dangling connections
     await _redisService.disconnect();
 
     // Showing the pop up to the user
