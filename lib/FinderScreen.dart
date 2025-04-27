@@ -9,7 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:tab_testing_app/redisUserBackup.dart';
+import 'redisUserBackup.dart';
 import 'userData.dart';
 import 'package:flutter/foundation.dart' show Factory;
 import 'package:flutter/gestures.dart';
@@ -103,6 +103,11 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   late Redisterpiezinfo _redisInfo;
   Map<String, dynamic>? _closestTerpiez;
 
+  // cache all terpiez locations locally
+  List<Map<String, dynamic>> _terpiezCache = [];
+  // timer to back up user data every 30 seconds
+  Timer? _backupTimer;
+
   Set<Marker> get markers {
     final Set<Marker> result = {};
     if (_closestTerpiez != null) {
@@ -124,6 +129,11 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     super.initState();
     _redisInfo = Redisterpiezinfo(_redisService);
 
+    // cache all terpiez into memory
+    _loadTerpiezCache();
+    // start periodic backup to redis every 30 seconds
+    _startPeriodicBackup();
+
     // listen for shakes when a Terpiez is in range
     _accelSub = accelerometerEventStream().listen((event) {
       if (_canCatch &&
@@ -144,6 +154,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   @override
   void dispose() {
     _accelSub?.cancel();
+    _backupTimer?.cancel(); // stop the backup timer when disposing
     super.dispose();
   }
 
@@ -180,36 +191,28 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
     ).listen((Position position) async {
       LatLng newPosition = LatLng(position.latitude, position.longitude);
 
-      // Fetch list of terpiez from Redis
-      final rawList = await _redisInfo.getTerpiezLocations();
-      if (rawList.isEmpty) return;
-
-      final terpiezList = <Map<String, dynamic>>[];
+      // use our in-memory cache of terpiez
+      if (_terpiezCache.isEmpty) return;
       final userData = Provider.of<Userdata>(context, listen: false);
 
-      for (final loc in rawList) {
-        final id = loc['id'];
-        final lat = loc['latitude'];
-        final lon = loc['longitude'];
-        final alreadyCaught = userData.caughtList.any((t) =>
-            t.id == id &&
-            t.locations.any((l) =>
+      // filter out any already-caught terpiez
+      final available = _terpiezCache.where((t) {
+        final id = t['id'] as String;
+        final lat = t['latitude'] as double;
+        final lon = t['longitude'] as double;
+        return !userData.caughtList.any((c) =>
+            c.id == id &&
+            c.locations.any((l) =>
                 (l.latitude - lat).abs() < 0.0001 &&
                 (l.longitude - lon).abs() < 0.0001));
-        if (alreadyCaught) continue;
-        final details = await _redisInfo.getTerpiezInfo(id);
-        terpiezList.add({
-          ...loc,
-          'name': details['name'] ?? 'Unknown',
-        });
-      }
+      });
 
-      // Find closest Terpiez
+      // Find closest Terpiez from available list
       Map<String, dynamic>? closest;
       double minDist = double.infinity;
-      for (var terp in terpiezList) {
-        final lat = terp['latitude'];
-        final lon = terp['longitude'];
+      for (var t in available) {
+        final lat = t['latitude'] as double;
+        final lon = t['longitude'] as double;
         final dist = haversine(
           newPosition.latitude,
           newPosition.longitude,
@@ -218,7 +221,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
         );
         if (dist < minDist) {
           minDist = dist;
-          closest = terp;
+          closest = t;
         }
       }
 
@@ -234,6 +237,39 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(newPosition),
       );
+    });
+  }
+
+  // load all terpiez locations and cache them
+  Future<void> _loadTerpiezCache() async {
+    final raw = await _redisInfo.getTerpiezLocations();
+    final cache = <Map<String, dynamic>>[];
+    for (final loc in raw) {
+      final id = loc['id'] as String;
+      final lat = loc['latitude'] as double;
+      final lon = loc['longitude'] as double;
+      final info = await _redisInfo.getTerpiezInfo(id);
+      cache.add({
+        'id': id,
+        'latitude': lat,
+        'longitude': lon,
+        'name': info['name'] ?? 'Unknown',
+      });
+    }
+    setState(() {
+      _terpiezCache = cache;
+    });
+  }
+
+  // start a periodic timer to back up user data to redis ever 30 seconds
+  void _startPeriodicBackup() {
+    _backupTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      final storage = const FlutterSecureStorage();
+      final username = await storage.read(key: 'redisUsername');
+      if (username != null) {
+        final userData = Provider.of<Userdata>(context, listen: false);
+        await backupUserDataToRedis(username, userData);
+      }
     });
   }
 
@@ -358,7 +394,8 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
             onMapCreated: (c) => _mapController = c,
             gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
               Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-              Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
+              Factory<ScaleGestureRecognizer>(
+                  () => ScaleGestureRecognizer()),
               Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
               Factory<VerticalDragGestureRecognizer>(
                   () => VerticalDragGestureRecognizer()),
@@ -399,7 +436,8 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
           onMapCreated: (c) => _mapController = c,
           gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
             Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-            Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
+            Factory<ScaleGestureRecognizer>(
+                () => ScaleGestureRecognizer()),
             Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
             Factory<VerticalDragGestureRecognizer>(
                 () => VerticalDragGestureRecognizer()),
