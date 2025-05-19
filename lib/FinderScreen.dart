@@ -18,6 +18,7 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:math';
 import 'redisService.dart';
 import 'redisTerpiezInfo.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 // at the end of _catchTerpiez the function writes back to redis and disconnects.
 
@@ -276,6 +277,10 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   }
 
   Future<void> _catchTerpiez(BuildContext context) async {
+    final player = AudioPlayer();
+    await player.play(AssetSource('audio/sonic_sound.wav'));
+
+
     if (!_canCatch || _closestTerpiez == null) return;
 
     final id = _closestTerpiez!['id'];
