@@ -46,7 +46,7 @@ void onStart(ServiceInstance service) {
           Geolocator.distanceBetween(pos.latitude, pos.longitude, lat, lon);
 
       if (dist > 10 && dist <= 20) {
-        // lastNotifiedId = id; 
+        // lastNotifiedId = id;
 
         final info = await redisHelper.getTerpiezInfo(id);
         final name = info['name'] ?? "Nearby Terpiez";
@@ -64,11 +64,12 @@ Future<void> initializeService() async {
 
   // create Android notification channel for your background service
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'terpiez_channel',                       
-    'Terpiez Background Notifications',      // visible to users in Settings
-    description: 'Alerts you when near an uncaught Terpiez', // shown in Settings
-    importance: Importance.high,             
-  );
+      'terpiez_channel',
+      'Terpiez Background Notifications', // visible to users in Settings
+      description:
+          'Alerts you when near an uncaught Terpiez', // shown in Settings
+      importance: Importance.high,
+      sound: RawResourceAndroidNotificationSound('boop'));
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
@@ -78,12 +79,15 @@ Future<void> initializeService() async {
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      isForegroundMode: true,              // must be true to survive app kill
+      isForegroundMode: true, // must be true to survive app kill
       autoStart: true,
-      notificationChannelId: 'terpiez_channel',         
-      foregroundServiceNotificationId: 888,              // ensure startForeground() immediately
-      initialNotificationTitle: 'Terpiez is running',   // initial notification title
-      initialNotificationContent: 'We’ll let you know when one is close.', // initial content
+      notificationChannelId: 'terpiez_channel',
+      foregroundServiceNotificationId:
+          888, // ensure startForeground() immediately
+      initialNotificationTitle:
+          'Terpiez is running', // initial notification title
+      initialNotificationContent:
+          'We’ll let you know when one is close.', // initial content
     ),
     iosConfiguration: IosConfiguration(),
   );

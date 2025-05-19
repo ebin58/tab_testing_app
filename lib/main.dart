@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
@@ -26,6 +27,25 @@ Future<void> main() async {
   }
 
   await initializeNotifications();
+  
+  // in order to test notification and sound
+  // Future.delayed(Duration(seconds: 5), () {
+  //   flutterLocalNotificationsPlugin.show(
+  //     99,
+  //     'Test Sound',
+  //     'This should play your boop.wav sound',
+  //     const NotificationDetails(
+  //       android: AndroidNotificationDetails(
+  //         'terpiez_channel_v2', // match new channel ID
+  //         'Test',
+  //         importance: Importance.max,
+  //         priority: Priority.high,
+  //         playSound: true,
+  //         sound: RawResourceAndroidNotificationSound('boop'),
+  //       ),
+  //     ),
+  //   );
+  // });
 
   final userData = Userdata();
   await userData.initUserdata();

@@ -46,6 +46,7 @@ Future<void> showNearbyTerpiezNotification(String name) async {
     importance: Importance.max,
     priority: Priority.high,
     playSound: true,
+    sound: RawResourceAndroidNotificationSound('boop')
   );
   const notifDetails = NotificationDetails(android: androidDetails);
 
