@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// add this import to be able to create your channel
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'redisService.dart';
 import 'notifications.dart';
@@ -16,9 +20,10 @@ void onStart(ServiceInstance service) {
     );
   }
 
-  String? lastNotifiedId;
+  // String? lastNotifiedId; // uncomment and use this if you want to avoid repeat notifications
 
-  Timer.periodic(const Duration(seconds: 15), (timer) async {
+  // timer for time between notifications
+  Timer.periodic(const Duration(seconds: 10), (timer) async {
     if (!(await Geolocator.isLocationServiceEnabled())) return;
 
     Position pos = await Geolocator.getCurrentPosition();
@@ -40,8 +45,8 @@ void onStart(ServiceInstance service) {
       final dist =
           Geolocator.distanceBetween(pos.latitude, pos.longitude, lat, lon);
 
-      if (dist > 10 && dist <= 20 && lastNotifiedId != id) {
-        lastNotifiedId = id;
+      if (dist > 10 && dist <= 20) {
+        // lastNotifiedId = id; // track last id to prevent duplicates
 
         final info = await redisHelper.getTerpiezInfo(id);
         final name = info['name'] ?? "Nearby Terpiez";
@@ -57,14 +62,28 @@ void onStart(ServiceInstance service) {
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
 
+  // create Android notification channel for your background service
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'terpiez_channel',                       // this ID matches below
+    'Terpiez Background Notifications',      // visible to users in Settings
+    description: 'Alerts you when near an uncaught Terpiez', // shown in Settings
+    importance: Importance.high,             // must be at least low to pop on screen
+  );
+  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      isForegroundMode: true, // must be true to survive app kill
+      isForegroundMode: true,              // must be true to survive app kill
       autoStart: true,
-      notificationChannelId: 'terpiez_channel',
-      initialNotificationTitle: 'Terpiez is running',
-      initialNotificationContent: 'We’ll let you know when one is close.',
+      notificationChannelId: 'terpiez_channel',         
+      foregroundServiceNotificationId: 888,              // ensure startForeground() immediately
+      initialNotificationTitle: 'Terpiez is running',   // initial notification title
+      initialNotificationContent: 'We’ll let you know when one is close.', // initial content
     ),
     iosConfiguration: IosConfiguration(),
   );

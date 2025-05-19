@@ -12,17 +12,20 @@ import 'redisLogin.dart';
 import 'redisService.dart';
 import 'preferences.dart';
 import 'notifications.dart';
-import 'background_services.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // a global key so we can show SnackBars from anywhere
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await initializeNotifications(); // sets up local notifications
-  await initializeService(); // kicks off background proximity checks
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
+  }
+
+  await initializeNotifications(); // Local notification setup ONLY
 
   final userData = Userdata();
   await userData.initUserdata();

@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'background_services.dart';
 import 'redisUserBackup.dart';
 import 'userData.dart';
 import 'package:flutter/foundation.dart' show Factory;
@@ -171,6 +172,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
       openAppSettings();
       return;
     }
+    await initializeService();
     _startLocationUpdates();
   }
 
@@ -394,8 +396,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
             onMapCreated: (c) => _mapController = c,
             gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
               Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-              Factory<ScaleGestureRecognizer>(
-                  () => ScaleGestureRecognizer()),
+              Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
               Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
               Factory<VerticalDragGestureRecognizer>(
                   () => VerticalDragGestureRecognizer()),
@@ -436,8 +437,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
           onMapCreated: (c) => _mapController = c,
           gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
             Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-            Factory<ScaleGestureRecognizer>(
-                () => ScaleGestureRecognizer()),
+            Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
             Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
             Factory<VerticalDragGestureRecognizer>(
                 () => VerticalDragGestureRecognizer()),
