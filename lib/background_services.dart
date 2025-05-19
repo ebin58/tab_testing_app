@@ -20,7 +20,7 @@ void onStart(ServiceInstance service) {
     );
   }
 
-  // String? lastNotifiedId; // uncomment and use this if you want to avoid repeat notifications
+  // String? lastNotifiedId;
 
   // timer for time between notifications
   Timer.periodic(const Duration(seconds: 10), (timer) async {
@@ -46,7 +46,7 @@ void onStart(ServiceInstance service) {
           Geolocator.distanceBetween(pos.latitude, pos.longitude, lat, lon);
 
       if (dist > 10 && dist <= 20) {
-        // lastNotifiedId = id; // track last id to prevent duplicates
+        // lastNotifiedId = id; 
 
         final info = await redisHelper.getTerpiezInfo(id);
         final name = info['name'] ?? "Nearby Terpiez";
@@ -64,10 +64,10 @@ Future<void> initializeService() async {
 
   // create Android notification channel for your background service
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'terpiez_channel',                       // this ID matches below
+    'terpiez_channel',                       
     'Terpiez Background Notifications',      // visible to users in Settings
     description: 'Alerts you when near an uncaught Terpiez', // shown in Settings
-    importance: Importance.high,             // must be at least low to pop on screen
+    importance: Importance.high,             
   );
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   await flutterLocalNotificationsPlugin

@@ -25,7 +25,7 @@ Future<void> main() async {
     await Permission.notification.request();
   }
 
-  await initializeNotifications(); // Local notification setup ONLY
+  await initializeNotifications(); 
 
   final userData = Userdata();
   await userData.initUserdata();
