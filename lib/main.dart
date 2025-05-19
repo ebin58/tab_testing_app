@@ -25,7 +25,7 @@ Future<void> main() async {
     await Permission.notification.request();
   }
 
-  await initializeNotifications(); 
+  await initializeNotifications();
 
   final userData = Userdata();
   await userData.initUserdata();
@@ -135,63 +135,89 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int tabIndex = 0;
+class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
+  late final TabController _tabController;
+  late final VoidCallback _finderListener;
 
   @override
   void initState() {
     super.initState();
 
-    // check if we were launched from a notification
-    final intent = consumeNotificationIntent();
-    if (intent == 'finder') {
-      tabIndex = 1;
-    }
+    // start on Stats tab
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 0);
+
+    // handle cold‑start intent once
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (consumeNotificationIntent() == 'finder') {
+        _tabController.animateTo(1);
+        debugPrint('navigated to finder tab (cold start)');
+      }
+    });
+
+    // react to every notification tap at runtime
+    _finderListener = () {
+      _tabController.animateTo(1);
+      debugPrint('navigated to finder tab (runtime tap)');
+    };
+    finderTapNotifier.addListener(_finderListener);
+  }
+
+  @override
+  void dispose() {
+    finderTapNotifier.removeListener(_finderListener);
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: DefaultTabController(
-        initialIndex: tabIndex,
-        length: 3,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text("Terpiez"),
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            bottom: const TabBar(tabs: [
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Terpiez"),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
               Tab(icon: Icon(Icons.auto_graph), text: "Stats"),
               Tab(icon: Icon(Icons.search), text: "Finder"),
               Tab(icon: Icon(Icons.list), text: "List"),
-            ]),
+            ],
           ),
-          drawer: Drawer(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                const DrawerHeader(
-                  decoration: BoxDecoration(color: Colors.deepPurple),
-                  child: Text('Menu',
-                      style: TextStyle(color: Colors.white, fontSize: 24)),
+        ),
+        drawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              const DrawerHeader(
+                decoration: BoxDecoration(color: Colors.deepPurple),
+                child: Text(
+                  'Menu',
+                  style: TextStyle(color: Colors.white, fontSize: 24),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.settings),
-                  title: const Text('Preferences'),
-                  onTap: () {
-                    Navigator.pop(context); // close drawer first
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const PreferencesScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Preferences'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const PreferencesScreen()),
+                  );
+                },
+              ),
+            ],
           ),
-          body: TabBarView(
-            children: [StatsScreen(), FinderScreen(), ListScreen()],
-          ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            StatsScreen(),
+            FinderScreen(),
+            ListScreen(),
+          ],
         ),
       ),
     );
