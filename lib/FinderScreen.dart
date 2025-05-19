@@ -19,6 +19,7 @@ import 'dart:math';
 import 'redisService.dart';
 import 'redisTerpiezInfo.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // at the end of _catchTerpiez the function writes back to redis and disconnects.
 
@@ -41,6 +42,15 @@ double haversine(double lat1, double lon1, double lat2, double lon2) {
   final c = 2 * atan2(sqrt(a), sqrt(1 - a));
 
   return earthRadius * c; // Distance in meters
+}
+
+Future<void> playSoundIfNotMuted(String path) async {
+  final prefs = await SharedPreferences.getInstance();
+  final isMuted = prefs.getBool('isMuted') ?? false;
+  if (!isMuted) {
+    final player = AudioPlayer();
+    await player.play(AssetSource(path));
+  }
 }
 
 // This is an array for Terpiez locations for testing purposes.
@@ -277,9 +287,7 @@ abstract class BaseStatefulState<T extends BaseState> extends State<T> {
   }
 
   Future<void> _catchTerpiez(BuildContext context) async {
-    final player = AudioPlayer();
-    await player.play(AssetSource('audio/sonic_sound.wav'));
-
+    await playSoundIfNotMuted('audio/sonic_sound.wav');
 
     if (!_canCatch || _closestTerpiez == null) return;
 

@@ -5,10 +5,39 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:provider/provider.dart';
 import 'userData.dart';
-import 'main.dart'; // needed to call runApp with MyApp
+import 'main.dart'; 
 
-class PreferencesScreen extends StatelessWidget {
+class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
+
+  @override
+  State<PreferencesScreen> createState() => _PreferencesScreenState();
+}
+
+class _PreferencesScreenState extends State<PreferencesScreen> {
+  bool _isMuted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMute();
+  }
+
+  Future<void> _loadMute() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isMuted = prefs.getBool('isMuted') ?? false;
+    });
+  }
+
+  Future<void> _toggleMute() async {
+    final prefs = await SharedPreferences.getInstance();
+    final newMute = !_isMuted;
+    await prefs.setBool('isMuted', newMute);
+    setState(() {
+      _isMuted = newMute;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +54,12 @@ class PreferencesScreen extends StatelessWidget {
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => _confirmClearDialog(context),
             ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up),
+              label: Text(_isMuted ? "Unmute All Sound" : "Mute All Sound"),
+              onPressed: _toggleMute,
+            ),
           ],
         ),
       ),
@@ -39,7 +74,8 @@ class PreferencesScreen extends StatelessWidget {
         content: const Text("This will erase your progress and start over."),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), // cancel means u close the popup
+            onPressed: () =>
+                Navigator.pop(context), // cancel means u close the popup
             child: const Text("Cancel"),
           ),
           ElevatedButton(
