@@ -11,6 +11,8 @@ import 'userData.dart';
 import 'redisLogin.dart';
 import 'redisService.dart';
 import 'preferences.dart';
+import 'notifications.dart';
+import 'background_services.dart';
 
 // a global key so we can show SnackBars from anywhere
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
@@ -18,6 +20,9 @@ final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await initializeNotifications(); // sets up local notifications
+  await initializeService(); // kicks off background proximity checks
 
   final userData = Userdata();
   await userData.initUserdata();
@@ -128,11 +133,24 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  int tabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // check if we were launched from a notification
+    final intent = consumeNotificationIntent();
+    if (intent == 'finder') {
+      tabIndex = 1;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: DefaultTabController(
-        initialIndex: 0,
+        initialIndex: tabIndex,
         length: 3,
         child: Scaffold(
           appBar: AppBar(
