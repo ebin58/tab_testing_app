@@ -9,7 +9,8 @@ import 'ListScreen.dart';
 import 'FinderScreen.dart';
 import 'userData.dart';
 import 'redisLogin.dart';
-import 'redisService.dart';                     
+import 'redisService.dart';
+import 'preferences.dart';
 
 // a global key so we can show SnackBars from anywhere
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
@@ -107,7 +108,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'tab test',
-      scaffoldMessengerKey: rootScaffoldMessengerKey,  // wire up the key
+      scaffoldMessengerKey: rootScaffoldMessengerKey, // wire up the key
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -142,6 +143,30 @@ class _MyHomePageState extends State<MyHomePage> {
               Tab(icon: Icon(Icons.search), text: "Finder"),
               Tab(icon: Icon(Icons.list), text: "List"),
             ]),
+          ),
+          drawer: Drawer(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                const DrawerHeader(
+                  decoration: BoxDecoration(color: Colors.deepPurple),
+                  child: Text('Menu',
+                      style: TextStyle(color: Colors.white, fontSize: 24)),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings),
+                  title: const Text('Preferences'),
+                  onTap: () {
+                    Navigator.pop(context); // close drawer first
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PreferencesScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
           body: TabBarView(
             children: [StatsScreen(), FinderScreen(), ListScreen()],
